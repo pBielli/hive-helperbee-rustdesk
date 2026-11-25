@@ -12,8 +12,12 @@ AGPL-3.0: the branded build must be published with its source (the fork is publi
 import os, pathlib, re, sys
 
 APP = "HelperBeeRemote"
-TITLE = "HelperBee"
-PRODUCT = "HelperBee - RustDesk"          # Windows product name / window title
+TITLE = "HelperBee"                       # the name people see: window titles, texts ("RustDesk" in translations)
+PRODUCT = "HelperBee Remote"              # Windows product name
+DESCRIPTION = "HelperBee Remote - remote assistance, based on RustDesk"
+PUBLISHER = "pBielli"
+# AGPL-3.0: the upstream copyright notice stays next to ours
+COPYRIGHT = "Copyright © 2026 pBielli. Based on RustDesk, Copyright © Purslane Tech Pte. Ltd. (AGPL-3.0)"
 SUB = "RustDesk · remote assistance"
 ACCENT = "0xFFEF443B"
 root = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else ".").resolve()
@@ -36,12 +40,23 @@ def edit(rel, pattern, repl, count=1, flags=0):
 # 1. application name (drives paths, service, config file names)
 # set in the main crate (libs/hbb_common is a submodule that the fork would not carry)
 edit("src/core_main.rs", r"(pub fn core_main\(\) -> Option<CoreMainAction> \{\n)",
-     rf'\g<1>    *hbb_common::config::APP_NAME.write().unwrap() = "{APP}".to_owned();\n')
-# 2. Windows binary metadata
+     rf'\g<1>    *hbb_common::config::APP_NAME.write().unwrap() = "{APP}".to_owned();\n'
+     # one notification-area icon: the HelperBee agent's (double click opens this window). No own tray icon.
+     r'    hbb_common::config::BUILTIN_SETTINGS.write().unwrap().insert(base::config::keys::OPTION_HIDE_TRAY.to_owned(), "Y".to_owned());\n')
+# 1b. the name people see is HelperBee (APP_NAME keeps paths and service names apart from the agent)
+edit("src/lang.rs", r"let app_name = crate::get_app_name\(\);", f'let app_name = "{TITLE}".to_owned();')
+edit("flutter/lib/common.dart", r"(String getWindowName\(\{WindowType\? overrideType\}\) \{\n  final name = )bind\.mainGetAppNameSync\(\);",
+     rf"\g<1>'{TITLE}';")
+# 2. Windows binary metadata and the Apps & features publisher
 edit("Cargo.toml", r'(ProductName\s*=\s*")[^"]*(")', rf"\g<1>{PRODUCT}\g<2>")
-edit("Cargo.toml", r'(FileDescription\s*=\s*")[^"]*(")', rf"\g<1>{PRODUCT}\g<2>")
+edit("Cargo.toml", r'(FileDescription\s*=\s*")[^"]*(")', rf"\g<1>{DESCRIPTION}\g<2>")
 edit("Cargo.toml", r'(OriginalFilename\s*=\s*")[^"]*(")', rf"\g<1>{APP.lower()}.exe\g<2>")
-edit("flutter/windows/runner/Runner.rc", r'"RustDesk"', f'"{PRODUCT}"', count=0)
+edit("Cargo.toml", r'(LegalCopyright\s*=\s*")[^"]*(")', rf'\g<1>{COPYRIGHT}\g<2>\nCompanyName = "{PUBLISHER}"')
+RC = "flutter/windows/runner/Runner.rc"
+for key, val in [("CompanyName", PUBLISHER), ("FileDescription", DESCRIPTION), ("LegalCopyright", COPYRIGHT),
+                 ("InternalName", APP.lower()), ("OriginalFilename", APP.lower() + ".exe"), ("ProductName", PRODUCT)]:
+    edit(RC, rf'(VALUE "{key}", )"[^"]*"', rf'\g<1>"{val}"')
+edit("src/platform/windows.rs", r'(/v Publisher /t REG_SZ /d \\")\{app_name\}(\\")', rf"\g<1>{PUBLISHER}\g<2>")
 # 3. Flutter theme: HelperBee accent
 edit("flutter/lib/common.dart", r"(static const Color accent = Color\()0x[0-9A-Fa-f]{8}(\))", rf"\g<1>{ACCENT}\g<2>")
 edit("flutter/lib/common.dart", r"(static const Color button = Color\()0x[0-9A-Fa-f]{8}(\))", rf"\g<1>{ACCENT}\g<2>")
@@ -81,7 +96,9 @@ else:
         return MARK.resize((n, n), Image.LANCZOS)
     big = logo(512)
     for rel, n in [("res/icon.png", 512), ("res/128x128.png", 128), ("res/128x128@2x.png", 256), ("res/32x32.png", 32),
-                   ("res/64x64.png", 64), ("flutter/assets/helperbee.png", 256), ("flutter/assets/icon.png", 256)]:
+                   ("res/64x64.png", 64), ("flutter/assets/helperbee.png", 256), ("flutter/assets/icon.png", 256),
+                   ("flutter/assets/logo.png", 256)]:
+        # the fork's .gitignore has "*png": the workflow adds these with git add -f, or the build uses RustDesk's
         p = root / rel
         if p.parent.exists():
             logo(n).save(p); ok += 1; print(f"ok   {rel}")
@@ -89,6 +106,14 @@ else:
         p = root / rel
         if p.parent.exists():
             big.save(p, sizes=[(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)]); ok += 1; print(f"ok   {rel}")
+
+# 6. the vector icon the window falls back to (and shows when icon.png is missing): the HelperBee mark
+SVG = os.environ.get("HB_MARK_SVG") or str(pathlib.Path(__file__).resolve().parent / "mark.svg")
+if os.path.exists(SVG) and (root / "flutter/assets").exists():
+    (root / "flutter/assets/icon.svg").write_text(pathlib.Path(SVG).read_text(encoding="utf-8"), encoding="utf-8")
+    ok += 1; print("ok   flutter/assets/icon.svg")
+else:
+    print(f"SKIP flutter/assets/icon.svg: {SVG} missing"); skip += 1
 
 print(f"\n{ok} edits applied, {skip} skipped")
 sys.exit(1 if ok == 0 else 0)
