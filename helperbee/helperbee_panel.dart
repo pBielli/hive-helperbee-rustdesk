@@ -1,4 +1,4 @@
-// HelperBee panel inside the HelperBee - RustDesk client (added by branding/rustdesk/apply-branding.py).
+// HelperBee panel inside the HelperBee Remote client (added by branding/rustdesk/apply-branding.py).
 // It talks to the local HelperBee agent API (127.0.0.1:47123, same data as the tray popup): connection,
 // remote-desktop apps on this PC with their IDs, password policy, and the assistance request.
 import 'dart:async';
@@ -262,7 +262,7 @@ class _PanelState extends State<_Panel> {
             const SizedBox(width: 12),
             const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text('HelperBee', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
-              Text('assist · by pbielli', style: TextStyle(fontSize: 12, color: Colors.grey)),
+              Text('Remote assistance · based on RustDesk · by pBielli', style: TextStyle(fontSize: 12, color: Colors.grey)),
             ])),
             IconButton(onPressed: () => Navigator.of(context).pop(), icon: const Icon(Icons.close)),
           ]),
