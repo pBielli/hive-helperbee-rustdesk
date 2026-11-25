@@ -28,8 +28,8 @@ jobs:
           git config user.email "pBielli@users.noreply.github.com"
           git checkout -B helperbee
           git add -A
-          # .gitignore has "*png": the branded PNG icons would stay out of the build
-          git add -f flutter/assets/*.png res/*.png
+          # .gitignore has "*png" and "*svg": the branded icons and the credit logos would stay out of the build
+          git add -f flutter/assets/*.png flutter/assets/*.svg res/*.png
           git commit -m "HelperBee branding (name, logo, accent, publisher, HelperBee panel)"
           git push -f origin helperbee
           echo "Branding committed. Now run this workflow again on the helperbee branch to build." >> $GITHUB_STEP_SUMMARY
