@@ -43,6 +43,8 @@ fn finish_macos_update(result: hbb_common::ResultType<()>) -> Option<CoreMainAct
 /// If it returns [`Some`], the action determines whether to start the UI or report failure.
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 pub fn core_main() -> Option<CoreMainAction> {
+    *hbb_common::config::APP_NAME.write().unwrap() = "HelperBeeRemote".to_owned();
+    hbb_common::config::BUILTIN_SETTINGS.write().unwrap().insert(base::config::keys::OPTION_HIDE_TRAY.to_owned(), "Y".to_owned());
     if !crate::common::global_init() {
         return None;
     }
