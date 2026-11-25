@@ -60,17 +60,32 @@ edit("src/platform/windows.rs", r'(/v Publisher /t REG_SZ /d \\")\{app_name\}(\\
 # 3. Flutter theme: HelperBee accent
 edit("flutter/lib/common.dart", r"(static const Color accent = Color\()0x[0-9A-Fa-f]{8}(\))", rf"\g<1>{ACCENT}\g<2>")
 edit("flutter/lib/common.dart", r"(static const Color button = Color\()0x[0-9A-Fa-f]{8}(\))", rf"\g<1>{ACCENT}\g<2>")
-# 4. Desktop home: HelperBee header (live status, click = HelperBee panel) + HelperBee button bottom right.
-#    The panel (helperbee_panel.dart) shows connection, the remote-assistance apps of this PC with their IDs,
-#    password policy and the assistance request, from the local HelperBee agent API.
-PANEL = os.environ.get("HB_PANEL") or str(pathlib.Path(__file__).resolve().parent / "helperbee_panel.dart")
+# 4. Desktop home = HelperBee home (helperbee_panel.dart): sections "Request assistance" (first, for anyone),
+#    "Control a remote desktop" (the RustDesk home page, unchanged) and "Settings"; credits line with the RustDesk
+#    and pBielli logos. Data from the local HelperBee agent API.
+HERE = pathlib.Path(__file__).resolve().parent
+PANEL = os.environ.get("HB_PANEL") or str(HERE / "helperbee_panel.dart")
 (root / "flutter/lib/desktop/pages/helperbee_panel.dart").write_text(pathlib.Path(PANEL).read_text(encoding="utf-8"), encoding="utf-8")
 ok += 1; print("ok   flutter/lib/desktop/pages/helperbee_panel.dart")
 HOME = "flutter/lib/desktop/pages/desktop_home_page.dart"
 edit(HOME, r"(import 'package:flutter_hbb/desktop/pages/desktop_tab_page.dart';\n)", r"\g<1>import 'package:flutter_hbb/desktop/pages/helperbee_panel.dart';\n")
-edit(HOME, r"(Widget buildLeftPane\(BuildContext context\) \{.*?Column\(\s*children: \[)", r"\g<1>\n                    const HelperBeeHeader(),", flags=re.S)
+# no big logo above "Your desktop" (the HelperBee mark is in the section bar)
+edit(HOME, r"\n[ \t]*Align\(\s*alignment: Alignment\.center,\s*child: loadLogo\(\),\s*\),", "")
 edit(HOME, r"(Widget build\(BuildContext context\) \{.*?return _buildBlock\(\s*child: )Row\((.*?)\n    \)\);\n  \}",
-     r"\g<1>Stack(fit: StackFit.expand, children: [Row(\g<2>\n    ), const Positioned(right: 18, bottom: 44, child: HelperBeeFab())]));\n  }", flags=re.S)
+     r"\g<1>HelperBeeHome(onNetworkSettings: () => DesktopSettingPage.switch2page(SettingsTabKey.network), remote: Row(\g<2>\n    )));\n  }", flags=re.S)
+# credits: the RustDesk logo (upstream icon.svg, kept before step 6 replaces it) and the pBielli logo
+A = root / "flutter/assets"
+if A.exists():
+    icon = A / "icon.svg"
+    if icon.exists() and "#EF443B" not in icon.read_text(encoding="utf-8"):
+        (A / "rustdesk.svg").write_text(icon.read_text(encoding="utf-8"), encoding="utf-8"); ok += 1; print("ok   flutter/assets/rustdesk.svg")
+    elif not (A / "rustdesk.svg").exists():
+        print("SKIP flutter/assets/rustdesk.svg: upstream icon.svg not found"); skip += 1
+    PB = pathlib.Path(os.environ.get("HB_PBIELLI") or str(HERE / "pbielli.png"))
+    if PB.exists():
+        (A / "pbielli.png").write_bytes(PB.read_bytes()); ok += 1; print("ok   flutter/assets/pbielli.png")
+    else:
+        print(f"SKIP flutter/assets/pbielli.png: {PB} missing"); skip += 1
 
 # 5. icons (rounded red square + monitor, same as the HelperBee web GUI)
 try:
